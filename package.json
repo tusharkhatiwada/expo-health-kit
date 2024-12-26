@@ -28,6 +28,7 @@
   "files": [
     "build",
     "app.plugin.js",
+    "plugin",
     "ios",
     "README.md",
     "LICENSE"
