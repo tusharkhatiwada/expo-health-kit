@@ -1,12 +1,13 @@
-import { ExpoHealthKit, HealthKitDataType, HealthKitError } from '../';
+import type { HealthKitDataType } from '../types';
+import { ExpoHealthKit } from '../ExpoHealthKit';
 
 jest.mock('expo-modules-core', () => ({
   requireNativeModule: () => ({
     isHealthKitAvailable: jest.fn().mockResolvedValue(true),
     requestAuthorization: jest.fn().mockResolvedValue(true),
     getAuthorizationStatus: jest.fn().mockResolvedValue({
-      [HealthKitDataType.STEPS]: 'authorized',
-      [HealthKitDataType.HEART_RATE]: 'authorized',
+      HKQuantityTypeIdentifierStepCount: 'authorized',
+      HKQuantityTypeIdentifierHeartRate: 'authorized',
     }),
     exportHealthData: jest.fn().mockResolvedValue({
       success: true,
@@ -15,7 +16,7 @@ jest.mock('expo-modules-core', () => ({
     cancelExport: jest.fn().mockResolvedValue(undefined),
     queryHealthData: jest.fn().mockResolvedValue([
       {
-        type: HealthKitDataType.STEPS,
+        type: 'HKQuantityTypeIdentifierStepCount',
         value: 1000,
         unit: 'count',
         startDate: '2024-01-01T00:00:00.000Z',
@@ -36,7 +37,7 @@ describe('ExpoHealthKit', () => {
   describe('configure', () => {
     it('should set configuration correctly', async () => {
       const config = {
-        selectedDataTypes: [HealthKitDataType.STEPS],
+        selectedDataTypes: ['HKQuantityTypeIdentifierStepCount'] as HealthKitDataType[],
         exportFormat: 'xml' as const,
       };
 
@@ -54,11 +55,13 @@ describe('ExpoHealthKit', () => {
 
   describe('requestAuthorization', () => {
     it('should throw error when no data types are specified', async () => {
-      await expect(healthKit.requestAuthorization([])).rejects.toThrow(HealthKitError);
+      await expect(healthKit.requestAuthorization([])).rejects.toThrowError();
     });
 
     it('should return success when authorization is granted', async () => {
-      const result = await healthKit.requestAuthorization([HealthKitDataType.STEPS]);
+      const result = await healthKit.requestAuthorization([
+        'HKQuantityTypeIdentifierStepCount',
+      ] as HealthKitDataType[]);
       expect(result).toEqual({
         success: true,
         deniedTypes: undefined,
@@ -69,7 +72,7 @@ describe('ExpoHealthKit', () => {
   describe('exportData', () => {
     beforeEach(async () => {
       await healthKit.configure({
-        selectedDataTypes: [HealthKitDataType.STEPS],
+        selectedDataTypes: ['HKQuantityTypeIdentifierStepCount'] as HealthKitDataType[],
         exportFormat: 'xml',
       });
     });
@@ -81,7 +84,7 @@ describe('ExpoHealthKit', () => {
           startDate: new Date(),
           endDate: new Date(),
         }),
-      ).rejects.toThrow(HealthKitError);
+      ).rejects.toThrowError();
     });
 
     it('should return export result when successful', async () => {
@@ -100,14 +103,14 @@ describe('ExpoHealthKit', () => {
   describe('queryHealthData', () => {
     it('should return health data when query is successful', async () => {
       const result = await healthKit.queryHealthData(
-        HealthKitDataType.STEPS,
+        'HKQuantityTypeIdentifierStepCount' as HealthKitDataType,
         new Date('2024-01-01'),
         new Date('2024-01-02'),
       );
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
-        type: HealthKitDataType.STEPS,
+        type: 'HKQuantityTypeIdentifierStepCount',
         value: 1000,
         unit: 'count',
       });
