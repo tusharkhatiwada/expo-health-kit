@@ -51,5 +51,10 @@
   },
   "dependencies": {
     "expo-modules-core": "^1.5.0"
+  },
+  "expo": {
+    "name": "expo-health-kit",
+    "platforms": ["ios"],
+    "plugin": "./app.plugin.js"
   }
 }

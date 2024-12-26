@@ -1,4 +1,4 @@
-import { requireNativeModule } from "expo-modules-core";
+import { requireNativeModule } from 'expo-modules-core';
 import {
   HealthKitConfig,
   ExportOptions,
@@ -10,14 +10,12 @@ import {
   QueryOptions,
   HealthKitError,
   HealthKitErrorCode,
-} from "./types";
+} from './types';
 
 interface ExpoHealthKitInterface {
   readonly isHealthKitAvailable: () => Promise<boolean>;
   readonly requestAuthorization: (permissions: string[]) => Promise<boolean>;
-  readonly getAuthorizationStatus: (
-    permissions: string[],
-  ) => Promise<Record<string, string>>;
+  readonly getAuthorizationStatus: (permissions: string[]) => Promise<Record<string, string>>;
   readonly exportHealthData: (options: {
     startDate: string;
     endDate: string;
@@ -34,7 +32,7 @@ interface ExpoHealthKitInterface {
   ) => Promise<HealthData[]>;
 }
 
-const NativeModule = requireNativeModule("ExpoHealthKit") as ExpoHealthKitInterface;
+const NativeModule = requireNativeModule('ExpoHealthKit') as ExpoHealthKitInterface;
 
 export class ExpoHealthKit {
   private config: HealthKitConfig | null = null;
@@ -49,21 +47,19 @@ export class ExpoHealthKit {
     } catch (error) {
       throw new HealthKitError(
         HealthKitErrorCode.UNAVAILABLE,
-        "Failed to check HealthKit availability",
+        'Failed to check HealthKit availability',
         error,
       );
     }
   }
 
-  async requestAuthorization(
-    dataTypes?: HealthKitDataType[],
-  ): Promise<AuthorizationResult> {
+  async requestAuthorization(dataTypes?: HealthKitDataType[]): Promise<AuthorizationResult> {
     try {
       const typesToRequest = dataTypes || this.config?.selectedDataTypes;
       if (!typesToRequest?.length) {
         throw new HealthKitError(
           HealthKitErrorCode.INVALID_PARAMETERS,
-          "No data types specified for authorization",
+          'No data types specified for authorization',
         );
       }
 
@@ -75,21 +71,19 @@ export class ExpoHealthKit {
     } catch (error) {
       throw new HealthKitError(
         HealthKitErrorCode.UNAUTHORIZED,
-        "Failed to request HealthKit authorization",
+        'Failed to request HealthKit authorization',
         error,
       );
     }
   }
 
-  async checkAuthorizationStatus(
-    dataTypes?: HealthKitDataType[],
-  ): Promise<AuthorizationStatus> {
+  async checkAuthorizationStatus(dataTypes?: HealthKitDataType[]): Promise<AuthorizationStatus> {
     try {
       const typesToCheck = dataTypes || this.config?.selectedDataTypes;
       if (!typesToCheck?.length) {
         throw new HealthKitError(
           HealthKitErrorCode.INVALID_PARAMETERS,
-          "No data types specified for status check",
+          'No data types specified for status check',
         );
       }
 
@@ -104,7 +98,7 @@ export class ExpoHealthKit {
     } catch (error) {
       throw new HealthKitError(
         HealthKitErrorCode.QUERY_FAILED,
-        "Failed to check authorization status",
+        'Failed to check authorization status',
         error,
       );
     }
@@ -114,7 +108,7 @@ export class ExpoHealthKit {
     if (!this.config) {
       throw new HealthKitError(
         HealthKitErrorCode.INVALID_CONFIG,
-        "ExpoHealthKit must be configured before exporting data",
+        'ExpoHealthKit must be configured before exporting data',
       );
     }
 
@@ -128,10 +122,7 @@ export class ExpoHealthKit {
       });
 
       if (!result.success) {
-        throw new HealthKitError(
-          HealthKitErrorCode.EXPORT_FAILED,
-          result.error || "Export failed",
-        );
+        throw new HealthKitError(HealthKitErrorCode.EXPORT_FAILED, result.error || 'Export failed');
       }
 
       return result;
@@ -141,7 +132,7 @@ export class ExpoHealthKit {
       }
       throw new HealthKitError(
         HealthKitErrorCode.EXPORT_FAILED,
-        "Failed to export health data",
+        'Failed to export health data',
         error,
       );
     }
@@ -151,11 +142,7 @@ export class ExpoHealthKit {
     try {
       await NativeModule.cancelExport();
     } catch (error) {
-      throw new HealthKitError(
-        HealthKitErrorCode.EXPORT_FAILED,
-        "Failed to cancel export",
-        error,
-      );
+      throw new HealthKitError(HealthKitErrorCode.EXPORT_FAILED, 'Failed to cancel export', error);
     }
   }
 
@@ -175,7 +162,7 @@ export class ExpoHealthKit {
     } catch (error) {
       throw new HealthKitError(
         HealthKitErrorCode.QUERY_FAILED,
-        "Failed to query health data",
+        'Failed to query health data',
         error,
       );
     }
