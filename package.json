@@ -21,7 +21,9 @@
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
-    "expo-module": "expo-module"
+    "expo-module": "expo-module",
+    "plugin:build": "tsc --noEmit && expo-module build",
+    "plugin:watch": "tsc --watch"
   },
   "files": [
     "build",
@@ -42,7 +44,8 @@
     "heart-rate",
     "sleep-tracking",
     "health-data",
-    "expo-module"
+    "expo-module",
+    "expo-config-plugin"
   ],
   "repository": {
     "type": "git",
