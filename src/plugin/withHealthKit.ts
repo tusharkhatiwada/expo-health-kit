@@ -44,17 +44,7 @@ const withHealthKitXcodeProject: ConfigPlugin = config => {
     const xcodeProject = config.modResults;
     const targetUuid = xcodeProject.getFirstTarget().uuid;
 
-    xcodeProject.addBuildProperty(
-      'SYSTEM_FRAMEWORK_SEARCH_PATHS',
-      '$(SDKROOT)/System/Library/Frameworks',
-      'Debug',
-    );
-    xcodeProject.addBuildProperty(
-      'SYSTEM_FRAMEWORK_SEARCH_PATHS',
-      '$(SDKROOT)/System/Library/Frameworks',
-      'Release',
-    );
-
+    // Add HealthKit framework
     xcodeProject.addFramework('HealthKit.framework', { weak: true });
 
     // Add HealthKit capability
