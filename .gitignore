@@ -40,3 +40,6 @@ Thumbs.db
 *.orig.*
 
 instructions/
+
+# npm package files
+*.tgz
