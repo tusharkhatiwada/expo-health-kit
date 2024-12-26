@@ -42,15 +42,42 @@ const withHealthKitEntitlements: ConfigPlugin = config => {
 const withHealthKitXcodeProject: ConfigPlugin = config => {
   return withXcodeProject(config, async config => {
     const xcodeProject = config.modResults;
+    const targetUuid = xcodeProject.getFirstTarget().uuid;
+
+    xcodeProject.addBuildProperty(
+      'SYSTEM_FRAMEWORK_SEARCH_PATHS',
+      '$(SDKROOT)/System/Library/Frameworks',
+      'Debug',
+    );
+    xcodeProject.addBuildProperty(
+      'SYSTEM_FRAMEWORK_SEARCH_PATHS',
+      '$(SDKROOT)/System/Library/Frameworks',
+      'Release',
+    );
+
+    xcodeProject.addFramework('HealthKit.framework', { weak: true });
 
     // Add HealthKit capability
-    const capabilities =
-      xcodeProject.pbxProjectSection()[xcodeProject.getFirstProject().uuid].attributes
-        .TargetAttributes[xcodeProject.getFirstTarget().uuid].SystemCapabilities;
+    if (xcodeProject.pbxProjectSection()) {
+      const projectSection = xcodeProject.pbxProjectSection()[xcodeProject.getFirstProject().uuid];
+      if (projectSection) {
+        const attributes = projectSection.attributes || {};
+        const targetAttributes = attributes.TargetAttributes || {};
+        const mainTargetAttributes = targetAttributes[targetUuid] || {};
+        const systemCapabilities = mainTargetAttributes.SystemCapabilities || {};
 
-    capabilities['com.apple.HealthKit'] = {
-      enabled: 1,
-    };
+        mainTargetAttributes.SystemCapabilities = {
+          ...systemCapabilities,
+          'com.apple.HealthKit': {
+            enabled: 1,
+          },
+        };
+
+        targetAttributes[targetUuid] = mainTargetAttributes;
+        attributes.TargetAttributes = targetAttributes;
+        projectSection.attributes = attributes;
+      }
+    }
 
     return config;
   });
