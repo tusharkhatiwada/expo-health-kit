@@ -1,6 +1,6 @@
 {
   "name": "expo-health-kit",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "A comprehensive TypeScript library for React Native and Expo that enables exporting Apple HealthKit data",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -63,7 +63,6 @@
     "react-native": ">=0.72.0"
   },
   "devDependencies": {
-    "@expo/config-plugins": "^9.0.12",
     "@types/jest": "^29.5.11",
     "@types/react": "^18.2.45",
     "@types/react-native": "^0.72.8",
@@ -79,14 +78,22 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "expo-modules-core": "^2.1.2"
+    "@expo/config-plugins": "^9.0.12",
+    "expo-modules-core": "^1.11.8"
   },
   "expo": {
     "name": "expo-health-kit",
     "platforms": [
       "ios"
     ],
-    "plugin": "./app.plugin.js"
+    "plugin": {
+      "ios": {
+        "infoPlist": {
+          "NSHealthShareUsageDescription": "This app requires access to Apple Health data to export your health and fitness information.",
+          "NSHealthUpdateUsageDescription": "This app requires write access to Apple Health to save your health and fitness information."
+        }
+      }
+    }
   },
   "publishConfig": {
     "access": "public"
