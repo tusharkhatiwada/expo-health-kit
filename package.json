@@ -1,6 +1,6 @@
 {
   "name": "expo-health-kit",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "A comprehensive TypeScript library for React Native and Expo that enables exporting Apple HealthKit data",
   "main": "build/index.js",
   "types": "build/index.d.ts",
