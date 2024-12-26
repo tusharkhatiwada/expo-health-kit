@@ -1,4 +1,4 @@
-import { requireNativeModule } from 'expo-modules-core';
+import { EventSubscription, requireNativeModule } from 'expo-modules-core';
 import {
   HealthKitConfig,
   ExportOptions,
@@ -10,6 +10,8 @@ import {
   QueryOptions,
   HealthKitError,
   HealthKitErrorCode,
+  BackgroundDeliveryConfig,
+  HealthKitUpdateEvent,
 } from './types';
 
 interface ExpoHealthKitInterface {
@@ -30,15 +32,48 @@ interface ExpoHealthKitInterface {
     endDate: string,
     options?: QueryOptions,
   ) => Promise<HealthData[]>;
+  readonly enableBackgroundDelivery: (dataType: string, updateInterval: number) => Promise<boolean>;
+  readonly disableBackgroundDelivery: (dataType: string) => Promise<boolean>;
+  addListener: (eventName: string, listener: (event: any) => void) => EventSubscription;
 }
 
 const NativeModule = requireNativeModule('ExpoHealthKit') as ExpoHealthKitInterface;
 
 export class ExpoHealthKit {
   private config: HealthKitConfig | null = null;
+  private eventSubscriptions: { [key: string]: (event: HealthKitUpdateEvent) => void } = {};
+  private subscription: EventSubscription | null = null;
+
+  constructor() {
+    this.subscription = NativeModule.addListener(
+      'healthKitUpdate',
+      (event: HealthKitUpdateEvent) => {
+        const callback = this.eventSubscriptions[event.type];
+        if (callback) {
+          callback(event);
+        }
+      },
+    );
+  }
 
   async configure(config: HealthKitConfig): Promise<void> {
     this.config = config;
+
+    // Set up background delivery if configured
+    if (config.backgroundFetch && config.backgroundDeliveryInterval) {
+      for (const dataType of config.selectedDataTypes) {
+        try {
+          await this.enableBackgroundDelivery({
+            dataType,
+            updateInterval: config.backgroundDeliveryInterval,
+          });
+        } catch (error) {
+          if (error instanceof Error) {
+            console.warn(`Failed to enable background delivery for ${dataType}: ${error.message}`);
+          }
+        }
+      }
+    }
   }
 
   async isHealthKitAvailable(): Promise<boolean> {
@@ -170,5 +205,44 @@ export class ExpoHealthKit {
 
   getAvailableDataTypes(): HealthKitDataType[] {
     return Object.values(HealthKitDataType);
+  }
+
+  async enableBackgroundDelivery(config: BackgroundDeliveryConfig): Promise<boolean> {
+    try {
+      return await NativeModule.enableBackgroundDelivery(config.dataType, config.updateInterval);
+    } catch (error) {
+      throw new HealthKitError(
+        HealthKitErrorCode.BACKGROUND_DELIVERY_FAILED,
+        'Failed to enable background delivery',
+        error,
+      );
+    }
+  }
+
+  async disableBackgroundDelivery(dataType: HealthKitDataType): Promise<boolean> {
+    try {
+      return await NativeModule.disableBackgroundDelivery(dataType);
+    } catch (error) {
+      throw new HealthKitError(
+        HealthKitErrorCode.BACKGROUND_DELIVERY_FAILED,
+        'Failed to disable background delivery',
+        error,
+      );
+    }
+  }
+
+  subscribeToUpdates(
+    dataType: HealthKitDataType,
+    callback: (event: HealthKitUpdateEvent) => void,
+  ): void {
+    this.eventSubscriptions[dataType] = callback;
+  }
+
+  unsubscribeFromUpdates(dataType: HealthKitDataType): void {
+    delete this.eventSubscriptions[dataType];
+    if (Object.keys(this.eventSubscriptions).length === 0 && this.subscription) {
+      this.subscription.remove();
+      this.subscription = null;
+    }
   }
 }

@@ -4,10 +4,16 @@ A comprehensive TypeScript library for React Native and Expo that enables export
 
 ## Features
 
-- 🏃‍♂️ Access to various HealthKit data types (steps, heart rate, etc.)
+- 🏃‍♂️ Complete access to all HealthKit data types
+- 📊 Activity and Fitness tracking
+- ❤️ Heart and Health metrics
+- 💪 Workouts and Exercise
+- 😴 Sleep Analysis
+- 🥗 Nutrition tracking
+- 📱 Background delivery support
+- 🔄 Real-time health updates
 - 📤 Export data in XML/JSON formats
 - 🔒 Robust permission handling
-- 📱 Background delivery support
 - 🎯 Type-safe TypeScript implementation
 - 📦 Easy integration with Expo
 
@@ -35,7 +41,76 @@ npx expo install expo-health-kit
 npx expo prebuild
 ```
 
-## Usage
+## Supported Data Types
+
+### Activity and Fitness
+
+- Steps
+- Distance (Walking, Running, Cycling, Swimming)
+- Energy (Active, Basal)
+- Flights Climbed
+- Exercise Time
+- Stand Time
+- Swimming Strokes
+- Workout Minutes
+
+### Body Measurements
+
+- Height
+- Body Mass
+- BMI
+- Body Fat Percentage
+- Lean Body Mass
+- Waist Circumference
+
+### Heart and Cardiovascular
+
+- Heart Rate
+- Resting Heart Rate
+- Walking Heart Rate
+- Heart Rate Variability (SDNN)
+- Heart Rate Recovery
+- Atrial Fibrillation
+- VO2 Max
+- Walking Speed/Steadiness
+- Stair Speed (Ascent/Descent)
+
+### Vitals
+
+- Blood Pressure (Systolic/Diastolic)
+- Respiratory Rate
+- Body Temperature
+- Blood Glucose
+- Oxygen Saturation
+- Blood Alcohol Content
+- Lung Function (FVC, FEV1)
+- Audio Exposure
+
+### Nutrition
+
+- Energy Consumed
+- Macronutrients (Carbs, Protein, Fat)
+- Micronutrients (Vitamins, Minerals)
+- Water Intake
+- Caffeine
+
+### Sleep
+
+- Sleep Analysis
+- Sleep Stages (Core, Deep, REM)
+- Time Awake
+- Sleep Duration
+
+### Other Categories
+
+- Mindfulness
+- Symptoms and Mood
+- Workouts
+- Reproductive Health
+- Environmental Metrics
+- Mobility and Gait
+
+## Usage Examples
 
 ### Basic Setup
 
@@ -44,9 +119,14 @@ import { ExpoHealthKit, HealthKitDataType } from 'expo-health-kit';
 
 const healthKit = new ExpoHealthKit();
 
-// Configure the library
+// Configure with desired data types
 await healthKit.configure({
-  selectedDataTypes: [HealthKitDataType.STEPS, HealthKitDataType.HEART_RATE],
+  selectedDataTypes: [
+    HealthKitDataType.STEPS,
+    HealthKitDataType.HEART_RATE,
+    HealthKitDataType.SLEEP_ANALYSIS,
+    // Add more data types as needed
+  ],
   exportFormat: 'xml',
 });
 
@@ -65,81 +145,104 @@ if (!authResult.success) {
 }
 ```
 
+### Querying Heart Rate Data
+
+```typescript
+// Get heart rate data
+const heartRateData = await healthKit.queryHealthData(
+  HealthKitDataType.HEART_RATE,
+  new Date('2024-01-01'),
+  new Date(),
+  { limit: 100, ascending: true },
+);
+
+console.log('Heart Rate Samples:', heartRateData);
+// Output:
+// [{
+//   type: "HKQuantityTypeIdentifierHeartRate",
+//   value: 72,
+//   unit: "count/min",
+//   startDate: "2024-01-01T10:00:00Z",
+//   endDate: "2024-01-01T10:00:00Z",
+//   sourceName: "Apple Watch",
+//   metadata: { ... }
+// }, ...]
+```
+
+### Sleep Analysis
+
+```typescript
+// Get sleep data
+const sleepData = await healthKit.queryHealthData(
+  HealthKitDataType.SLEEP_ANALYSIS,
+  new Date('2024-01-01'),
+  new Date(),
+);
+
+// Get detailed sleep stages
+const sleepStages = await Promise.all([
+  healthKit.queryHealthData(HealthKitDataType.SLEEP_CORE, startDate, endDate),
+  healthKit.queryHealthData(HealthKitDataType.SLEEP_REM, startDate, endDate),
+  healthKit.queryHealthData(HealthKitDataType.SLEEP_DEEP, startDate, endDate),
+]);
+```
+
+### Workout Data
+
+```typescript
+// Query workout data
+const workouts = await healthKit.queryHealthData(
+  HealthKitDataType.WORKOUT,
+  new Date('2024-01-01'),
+  new Date(),
+);
+
+// Get associated metrics
+const workoutMetrics = await healthKit.queryHealthData(
+  HealthKitDataType.ACTIVE_ENERGY_BURNED,
+  workouts[0].startDate,
+  workouts[0].endDate,
+);
+```
+
+### Real-time Updates
+
+```typescript
+// Subscribe to real-time heart rate updates
+healthKit.subscribeToUpdates(HealthKitDataType.HEART_RATE, event => {
+  console.log('New heart rate reading:', event);
+});
+
+// Enable background delivery
+await healthKit.enableBackgroundDelivery({
+  dataType: HealthKitDataType.HEART_RATE,
+  updateInterval: 3600, // hourly updates
+});
+```
+
 ### Exporting Data
 
 ```typescript
-try {
-  const result = await healthKit.exportData({
-    startDate: new Date('2023-01-01'),
-    endDate: new Date(),
-    progressCallback: progress => {
-      console.log(`Export progress: ${progress}%`);
-    },
-  });
-
-  console.log('Export successful:', result.filePath);
-} catch (error) {
-  console.error('Export failed:', error);
-}
-```
-
-### Querying Specific Data
-
-```typescript
-try {
-  const heartRateData = await healthKit.queryHealthData(
+// Export health data
+const result = await healthKit.exportData({
+  startDate: new Date('2024-01-01'),
+  endDate: new Date(),
+  includeDataTypes: [
+    HealthKitDataType.STEPS,
     HealthKitDataType.HEART_RATE,
-    new Date('2023-01-01'),
-    new Date(),
-    { limit: 100, ascending: true },
-  );
+    HealthKitDataType.SLEEP_ANALYSIS,
+  ],
+  progressCallback: progress => {
+    console.log(`Export progress: ${progress}%`);
+  },
+});
 
-  console.log('Heart rate data:', heartRateData);
-} catch (error) {
-  console.error('Query failed:', error);
-}
+console.log('Export successful:', result.filePath);
 ```
-
-## API Reference
-
-### ExpoHealthKit Class
-
-#### Methods
-
-- `configure(config: HealthKitConfig): Promise<void>`
-- `isHealthKitAvailable(): Promise<boolean>`
-- `requestAuthorization(dataTypes?: HealthKitDataType[]): Promise<AuthorizationResult>`
-- `checkAuthorizationStatus(dataTypes?: HealthKitDataType[]): Promise<AuthorizationStatus>`
-- `exportData(options: ExportOptions): Promise<ExportResult>`
-- `cancelExport(): Promise<void>`
-- `queryHealthData(dataType: HealthKitDataType, startDate: Date, endDate: Date, options?: QueryOptions): Promise<HealthData[]>`
-- `getAvailableDataTypes(): HealthKitDataType[]`
-
-### Types
-
-```typescript
-interface HealthKitConfig {
-  selectedDataTypes: HealthKitDataType[];
-  exportFormat: 'xml' | 'json';
-  backgroundFetch?: boolean;
-  exportLocation?: string;
-  backgroundDeliveryInterval?: number;
-}
-
-interface ExportOptions {
-  startDate: Date;
-  endDate: Date;
-  includeDataTypes?: HealthKitDataType[];
-  progressCallback?: (progress: number) => void;
-  cancelToken?: { isCancelled: boolean };
-}
-```
-
-For a complete list of types and interfaces, refer to the TypeScript definitions in the package.
 
 ## Error Handling
 
-The library uses custom `HealthKitError` class for error handling:
+The library uses custom `HealthKitError` class for comprehensive error handling:
 
 ```typescript
 try {
@@ -153,11 +256,32 @@ try {
       case HealthKitErrorCode.EXPORT_FAILED:
         console.error('Export failed:', error.message, error.details);
         break;
-      // Handle other error codes
+      case HealthKitErrorCode.INVALID_PARAMETERS:
+        console.error('Invalid parameters:', error.message);
+        break;
+      case HealthKitErrorCode.BACKGROUND_DELIVERY_FAILED:
+        console.error('Background delivery failed:', error.message);
+        break;
     }
   }
 }
 ```
+
+## Data Units
+
+The library automatically handles unit conversions. Here are some common units:
+
+- Steps: count
+- Distance: meters (m)
+- Heart Rate: beats per minute (count/min)
+- Energy: kilocalories (kcal)
+- Weight: kilograms (kg)
+- Height: meters (m)
+- Blood Pressure: millimeters of mercury (mmHg)
+- Blood Glucose: milligrams per deciliter (mg/dL)
+- Temperature: degrees Celsius (°C)
+- Sleep: hours (hr)
+- VO2 Max: milliliters per kilogram per minute (mL/kg/min)
 
 ## Contributing
 

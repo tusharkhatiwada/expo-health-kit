@@ -3,6 +3,7 @@ import HealthKit
 
 public class ExpoHealthKitModule: Module {
     public static let healthStore = HKHealthStore()
+    private var observers: [String: HKObserverQuery] = [:]
 
     // Define the module's name
     public func definition() -> ModuleDefinition {
@@ -166,6 +167,73 @@ public class ExpoHealthKitModule: Module {
                 "totalRecords": allData.count
             ]
         }
+
+        AsyncFunction("enableBackgroundDelivery") { (dataType: String, updateInterval: Double) async throws -> Bool in
+            guard let type = try self.getSampleType(for: dataType) as? HKQuantityType else {
+                throw ExpoHealthKitError.invalidType
+            }
+
+            let frequency: HKUpdateFrequency
+            if updateInterval <= 3600 {
+                frequency = .hourly
+            } else if updateInterval <= 86400 {
+                frequency = .daily
+            } else {
+                frequency = .weekly
+            }
+
+            do {
+                try await healthStore.enableBackgroundDelivery(for: type, frequency: frequency)
+
+                // Set up observer query
+                let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] (query, completionHandler, error) in
+                    if let error = error {
+                        print("Background delivery error: \(error.localizedDescription)")
+                        completionHandler()
+                        return
+                    }
+
+                    // Handle the update
+                    self?.sendEvent("healthKitUpdate", [
+                        "type": dataType,
+                        "timestamp": ISO8601DateFormatter().string(from: Date())
+                    ])
+
+                    completionHandler()
+                }
+
+                healthStore.execute(query)
+                observers[dataType] = query
+
+                return true
+            } catch {
+                throw ExpoHealthKitError.backgroundDeliveryFailed
+            }
+        }
+
+        AsyncFunction("disableBackgroundDelivery") { (dataType: String) async throws -> Bool in
+            guard let type = try self.getSampleType(for: dataType) as? HKQuantityType else {
+                throw ExpoHealthKitError.invalidType
+            }
+
+            do {
+                try await healthStore.disableBackgroundDelivery(for: type)
+
+                if let query = observers[dataType] {
+                    healthStore.stop(query)
+                    observers.removeValue(forKey: dataType)
+                }
+
+                return true
+            } catch {
+                throw ExpoHealthKitError.backgroundDeliveryFailed
+            }
+        }
+
+        // Add event emitter for background updates
+        EventEmitter {
+            Event("healthKitUpdate") { [String: Any] in }
+        }
     }
 
     // MARK: - Helper Methods
@@ -196,31 +264,136 @@ public class ExpoHealthKitModule: Module {
 
     private func getUnit(for identifier: String) -> HKUnit {
         switch identifier {
-        case HKQuantityTypeIdentifier.stepCount.rawValue:
+        // Activity and Fitness
+        case HKQuantityTypeIdentifier.stepCount.rawValue,
+             HKQuantityTypeIdentifier.flightsClimbed.rawValue,
+             HKQuantityTypeIdentifier.pushCount.rawValue,
+             HKQuantityTypeIdentifier.swimmingStrokeCount.rawValue:
             return .count()
-        case HKQuantityTypeIdentifier.distanceWalkingRunning.rawValue:
+
+        case HKQuantityTypeIdentifier.distanceWalkingRunning.rawValue,
+             HKQuantityTypeIdentifier.distanceCycling.rawValue,
+             HKQuantityTypeIdentifier.distanceSwimming.rawValue,
+             HKQuantityTypeIdentifier.height.rawValue,
+             HKQuantityTypeIdentifier.waistCircumference.rawValue:
             return .meter()
-        case HKQuantityTypeIdentifier.heartRate.rawValue:
-            return .count().unitDivided(by: .minute())
-        case HKQuantityTypeIdentifier.activeEnergyBurned.rawValue:
+
+        case HKQuantityTypeIdentifier.activeEnergyBurned.rawValue,
+             HKQuantityTypeIdentifier.basalEnergyBurned.rawValue,
+             HKQuantityTypeIdentifier.dietaryEnergyConsumed.rawValue:
             return .kilocalorie()
-        case HKQuantityTypeIdentifier.bodyMass.rawValue:
+
+        case HKQuantityTypeIdentifier.appleExerciseTime.rawValue,
+             HKQuantityTypeIdentifier.appleStandTime.rawValue,
+             HKQuantityTypeIdentifier.workoutMinutes.rawValue,
+             HKQuantityTypeIdentifier.mindfulMinutes.rawValue:
+            return .minute()
+
+        // Body Measurements
+        case HKQuantityTypeIdentifier.bodyMass.rawValue,
+             HKQuantityTypeIdentifier.leanBodyMass.rawValue:
             return .gramUnit(with: .kilo)
-        case HKQuantityTypeIdentifier.height.rawValue:
-            return .meter()
+
         case HKQuantityTypeIdentifier.bodyMassIndex.rawValue:
             return .count()
-        case HKQuantityTypeIdentifier.bodyFatPercentage.rawValue:
+
+        case HKQuantityTypeIdentifier.bodyFatPercentage.rawValue,
+             HKQuantityTypeIdentifier.oxygenSaturation.rawValue,
+             HKQuantityTypeIdentifier.walkingAsymmetryPercentage.rawValue,
+             HKQuantityTypeIdentifier.walkingDoubleSupportPercentage.rawValue,
+             HKQuantityTypeIdentifier.appleWalkingSteadiness.rawValue:
             return .percent()
+
+        // Heart and Fitness
+        case HKQuantityTypeIdentifier.heartRate.rawValue,
+             HKQuantityTypeIdentifier.restingHeartRate.rawValue,
+             HKQuantityTypeIdentifier.walkingHeartRateAverage.rawValue,
+             HKQuantityTypeIdentifier.respiratoryRate.rawValue:
+            return .count().unitDivided(by: .minute())
+
+        case HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue:
+            return .secondUnit(with: .milli)
+
+        case HKQuantityTypeIdentifier.vo2Max.rawValue:
+            return HKUnit.literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo)).unitMultiplied(by: .minute())
+
+        case HKQuantityTypeIdentifier.walkingSpeed.rawValue,
+             HKQuantityTypeIdentifier.stairAscentSpeed.rawValue,
+             HKQuantityTypeIdentifier.stairDescentSpeed.rawValue:
+            return .meter().unitDivided(by: .second())
+
+        case HKQuantityTypeIdentifier.walkingStepLength.rawValue:
+            return .meter()
+
+        // Vitals
         case HKQuantityTypeIdentifier.bloodPressureSystolic.rawValue,
              HKQuantityTypeIdentifier.bloodPressureDiastolic.rawValue:
             return .millimeterOfMercury()
-        case HKQuantityTypeIdentifier.respiratoryRate.rawValue:
-            return .count().unitDivided(by: .minute())
-        case HKQuantityTypeIdentifier.oxygenSaturation.rawValue:
-            return .percent()
+
+        case HKQuantityTypeIdentifier.bodyTemperature.rawValue,
+             HKQuantityTypeIdentifier.basalBodyTemperature.rawValue,
+             HKQuantityTypeIdentifier.waterTemperature.rawValue:
+            return .degreeCelsius()
+
         case HKQuantityTypeIdentifier.bloodGlucose.rawValue:
             return HKUnit.gramUnit(with: .milli).unitDivided(by: .literUnit(with: .deci))
+
+        case HKQuantityTypeIdentifier.bloodAlcoholContent.rawValue:
+            return .percent()
+
+        case HKQuantityTypeIdentifier.forcedVitalCapacity.rawValue,
+             HKQuantityTypeIdentifier.forcedExpiratoryVolume1.rawValue:
+            return .liter()
+
+        case HKQuantityTypeIdentifier.peakExpiratoryFlowRate.rawValue:
+            return .liter().unitDivided(by: .minute())
+
+        case HKQuantityTypeIdentifier.environmentalAudioExposure.rawValue,
+             HKQuantityTypeIdentifier.headphoneAudioExposure.rawValue:
+            return .decibelAWeightedSoundPressureLevel()
+
+        // Nutrition
+        case HKQuantityTypeIdentifier.dietaryCarbohydrates.rawValue,
+             HKQuantityTypeIdentifier.dietaryFiber.rawValue,
+             HKQuantityTypeIdentifier.dietarySugar.rawValue,
+             HKQuantityTypeIdentifier.dietaryFatTotal.rawValue,
+             HKQuantityTypeIdentifier.dietaryFatSaturated.rawValue,
+             HKQuantityTypeIdentifier.dietaryProtein.rawValue,
+             HKQuantityTypeIdentifier.dietaryCholesterol.rawValue,
+             HKQuantityTypeIdentifier.dietarySodium.rawValue,
+             HKQuantityTypeIdentifier.dietaryPotassium.rawValue,
+             HKQuantityTypeIdentifier.dietaryCalcium.rawValue,
+             HKQuantityTypeIdentifier.dietaryIron.rawValue:
+            return .gram()
+
+        case HKQuantityTypeIdentifier.dietaryVitaminC.rawValue,
+             HKQuantityTypeIdentifier.dietaryVitaminD.rawValue:
+            return .gramUnit(with: .micro)
+
+        case HKQuantityTypeIdentifier.dietaryWater.rawValue:
+            return .liter()
+
+        case HKQuantityTypeIdentifier.dietaryCaffeine.rawValue:
+            return .gramUnit(with: .milli)
+
+        // Sleep
+        case HKQuantityTypeIdentifier.sleepDurationInBed.rawValue,
+             HKQuantityTypeIdentifier.sleepCore.rawValue,
+             HKQuantityTypeIdentifier.sleepDeep.rawValue,
+             HKQuantityTypeIdentifier.sleepREM.rawValue,
+             HKQuantityTypeIdentifier.sleepAwake.rawValue:
+            return .hour()
+
+        // Other
+        case HKQuantityTypeIdentifier.insulinDelivery.rawValue:
+            return .internationalUnit()
+
+        case HKQuantityTypeIdentifier.timeInDaylight.rawValue:
+            return .minute()
+
+        case HKQuantityTypeIdentifier.uvExposure.rawValue:
+            return .count()
+
         default:
             return .count()
         }
@@ -244,6 +417,32 @@ public class ExpoHealthKitModule: Module {
             return "mmHg"
         case HKUnit.gramUnit(with: .milli).unitDivided(by: .literUnit(with: .deci)):
             return "mg/dL"
+        case HKUnit.minute():
+            return "min"
+        case HKUnit.hour():
+            return "hr"
+        case HKUnit.secondUnit(with: .milli):
+            return "ms"
+        case HKUnit.degreeCelsius():
+            return "°C"
+        case HKUnit.liter():
+            return "L"
+        case HKUnit.liter().unitDivided(by: .minute()):
+            return "L/min"
+        case HKUnit.decibelAWeightedSoundPressureLevel():
+            return "dB"
+        case HKUnit.gram():
+            return "g"
+        case HKUnit.gramUnit(with: .micro):
+            return "µg"
+        case HKUnit.gramUnit(with: .milli):
+            return "mg"
+        case HKUnit.internationalUnit():
+            return "IU"
+        case HKUnit.meter().unitDivided(by: .second()):
+            return "m/s"
+        case HKUnit.literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo)).unitMultiplied(by: .minute()):
+            return "mL/kg/min"
         default:
             return unit.unitString
         }
@@ -291,6 +490,7 @@ enum ExpoHealthKitError: Error {
     case invalidType
     case invalidParameters
     case exportFailed
+    case backgroundDeliveryFailed
 }
 
 // MARK: - Error Handling
@@ -303,6 +503,8 @@ extension ExpoHealthKitError: LocalizedError {
             return "Invalid parameters provided"
         case .exportFailed:
             return "Failed to export health data"
+        case .backgroundDeliveryFailed:
+            return "Failed to configure background delivery"
         }
     }
 }
