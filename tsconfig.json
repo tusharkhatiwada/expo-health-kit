@@ -4,7 +4,6 @@
     "module": "commonjs",
     "lib": ["es2020"],
     "declaration": true,
-    "declarationMap": true,
     "sourceMap": true,
     "outDir": "./build",
     "rootDir": "./src",
@@ -21,13 +20,11 @@
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
     "baseUrl": "./",
-    "paths": {
-      "*": ["node_modules/*"]
-    },
+    "paths": {},
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "**/__tests__/*"]
+  "include": ["src/runtime/**/*", "src/types/**/*"],
+  "exclude": ["node_modules", "build", "plugin", "**/__tests__/*"]
 }

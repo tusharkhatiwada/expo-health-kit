@@ -1,6 +1,6 @@
 {
   "name": "expo-health-kit",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A comprehensive TypeScript library for React Native and Expo that enables exporting Apple HealthKit data",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -21,9 +21,7 @@
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
-    "expo-module": "expo-module",
-    "plugin:build": "tsc --noEmit && expo-module build",
-    "plugin:watch": "tsc --watch"
+    "expo-module": "expo-module"
   },
   "files": [
     "build",
@@ -31,7 +29,8 @@
     "plugin",
     "ios",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "metro.config.js"
   ],
   "keywords": [
     "react-native",
